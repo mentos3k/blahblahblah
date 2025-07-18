@@ -1,0 +1,77 @@
+#include <windows.h>
+#include <shlobj.h>       // For SHFileOperation
+#include <iostream>
+#include <string>
+
+void DeleteWithDeleteFile(const std::wstring& filePath) {
+    if (DeleteFileW(filePath.c_str())) {
+        std::wcout << L"[+] DeleteFileW succeeded: " << filePath << std::endl;
+    } else {
+        std::wcout << L"[-] DeleteFileW failed: " << GetLastError() << std::endl;
+    }
+}
+
+void DeleteWithSHFileOperation(const std::wstring& filePath) {
+    SHFILEOPSTRUCTW fileOp = {0};
+    wchar_t fileBuffer[MAX_PATH];
+    wcscpy_s(fileBuffer, filePath.c_str());
+    fileBuffer[filePath.size() + 1] = 0; // double null-terminate
+
+    fileOp.wFunc = FO_DELETE;
+    fileOp.pFrom = fileBuffer;
+    fileOp.fFlags = FOF_NOCONFIRMATION | FOF_SILENT;
+
+    int result = SHFileOperationW(&fileOp);
+    std::wcout << (result == 0 ? L"[+] SHFileOperationW succeeded" : L"[-] SHFileOperationW failed") << std::endl;
+}
+
+void DeleteOnReboot(const std::wstring& filePath) {
+    if (MoveFileExW(filePath.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT)) {
+        std::wcout << L"[+] File scheduled for deletion on reboot: " << filePath << std::endl;
+    } else {
+        std::wcout << L"[-] MoveFileExW failed: " << GetLastError() << std::endl;
+    }
+}
+
+void SelfDelete() {
+    wchar_t modulePath[MAX_PATH];
+    GetModuleFileNameW(NULL, modulePath, MAX_PATH);
+
+    std::wstring command = L"cmd.exe /C timeout 2 & del \"" + std::wstring(modulePath) + L"\"";
+    STARTUPINFOW si = { sizeof(si) };
+    PROCESS_INFORMATION pi;
+
+    if (CreateProcessW(NULL, (LPWSTR)command.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        std::wcout << L"[+] Self-delete scheduled" << std::endl;
+    } else {
+        std::wcout << L"[-] Self-delete failed" << std::endl;
+    }
+}
+
+void DeleteWithSetFileInfo(const std::wstring& filePath) {
+    HANDLE hFile = CreateFileW(filePath.c_str(), DELETE, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        std::wcout << L"[+] File will be deleted on close: " << filePath << std::endl;
+        CloseHandle(hFile);
+    } else {
+        std::wcout << L"[-] CreateFileW (DELETE_ON_CLOSE) failed: " << GetLastError() << std::endl;
+    }
+}
+
+int wmain(int argc, wchar_t* argv[]) {
+    std::wstring testFile = L"C:\\Temp\\testfile.txt"; // replace with target
+
+    std::wcout << L"[*] Starting file delete tests on: " << testFile << std::endl;
+
+    DeleteWithDeleteFile(testFile);
+    DeleteWithSHFileOperation(testFile);
+    DeleteWithSetFileInfo(testFile);
+    DeleteOnReboot(testFile);
+
+    // Self-delete as the last test
+    SelfDelete();
+
+    return 0;
+}
