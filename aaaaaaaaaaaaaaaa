@@ -1,3 +1,5 @@
+https://blogs.pivotsec.in/blogs/pwning-edr-for-initial-access-part2
+
 Think of AppDomainManager as a class which will be present in the shellcode loader that can be invoked from a .Net configuration file. This .Net configuration file (ComSvcConfig.exe.config) contains reference to the AppDomain Manager Libraries (ClickOnceLoader.dll). Once ComSvcConfig.exe gets executed, it loads up configuration file (ComSvcConfig.exe.config). The content of this ComSvcConfig.exe.config file looks similar to the one shown below:
 
 // Some code
